@@ -2,54 +2,56 @@ version: '3'
 
 services:
     nginx:
-        container_name: ${APP_NAME}-nginx
-        restart: always
         build:
             context: ./nginx
             dockerfile: Dockerfile
+        container_name: ${APP_NAME}-nginx
+        restart: always
         volumes:
-            - ${APPLICATION}:/var/www/html
-            - ${NGINX_HOST_LOG_PATH}:/var/log/nginx
-            - ${NGINX_SITES_PATH}:/etc/nginx/conf.d
+            - ./sources:/var/www/html
+            - ./nginx/logs:/var/log/nginx
+            - ./nginx/conf.d:/etc/nginx/conf.d
         ports:
-            - "${NGINX_HOST_HTTP_PORT}:80"
-            - "${NGINX_HOST_HTTPS_PORT}:443"
+            - "8000:80"
+            - "443:443"
+        depends_on:
+            - php
+            - mysql
         links:
             - php
+        command: nginx -g 'daemon off;'
         networks:
             - lemp-network
 
     php:
-        container_name: ${APP_NAME}-php
-        restart: always
         build:
             context: ./php
-            args:
-                - INSTALL_GD=${PHP_FPM_INSTALL_GD}
-                - INSTALL_MBSTRING=${PHP_FPM_INSTALL_MBSTRING}
-                - INSTALL_MCRYPT=${PHP_FPM_INSTALL_MCRYPT}
-                - INSTALL_PDO_MYSQL=${PHP_FPM_INSTALL_PDO_MYSQL}
-                - INSTALL_PDO_POSTGRESQL=${PHP_FPM_INSTALL_PDO_POSTGRESQL}
-                - INSTALL_MYSQLI=${PHP_FPM_INSTALL_MYSQLI}
-                - INSTALL_COMPOSER=${PHP_FPM_INSTALL_COMPOSER}
             dockerfile: Dockerfile
-        expose:
-            - "9000"    
+        container_name: ${APP_NAME}-php
+        restart: always
+        depends_on:
+            - mysql
+        links:
+            - mysql
         volumes:
-            - ${APPLICATION}:/var/www/html
+            - ./sources:/var/www/html
+            - ./php/php.ini:/usr/local/etc/php/conf.d/php.ini
+        ports:
+            - "9000:9000"  
         networks:
-            - lemp-network            
+            - lemp-network
             
     mysql:
-        container_name: ${APP_NAME}-mysql
-        restart: always
         build:
             context: ./mysql
             dockerfile: Dockerfile
+        container_name: ${APP_NAME}-mysql
+        restart: always
+        volumes:
+            - dbdata:/var/lib/mysql
+            - ${MYSQL_CONFIG_PATH}:/etc/mysql/conf.d
         ports:
             - "${MYSQL_PORT}:3306"
-        volumes:
-            - ${MYSQL_DATA}:/var/lib/mysql
         environment:
             - MYSQL_DATABASE=${MYSQL_DATABASE}
             - MYSQL_USER=${MYSQL_USER}
@@ -59,13 +61,13 @@ services:
             - lemp-network
 
     phpmyadmin:
-        container_name: ${APP_NAME}-phpmyadmin
         build:
             context: ./pma
             dockerfile: Dockerfile
+        container_name: ${APP_NAME}-phpmyadmin
         ports:
             - ${PMA_PORT}:80
-        links:
+        depends_on:
             - mysql
         environment:
             - PMA_HOST=${MYSQL_HOST}
@@ -76,3 +78,7 @@ services:
 networks:
     lemp-network:
         driver: bridge
+
+volumes:
+    dbdata:
+        driver: local
