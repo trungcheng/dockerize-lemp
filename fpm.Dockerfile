@@ -25,6 +25,9 @@ MAINTAINER Đinh Trung <trungdn.dev@gmail.com>
 # Clear package lists
 #RUN rm -rf /var/lib/apt/lists/*
 
+COPY php.ini /usr/local/etc/php/conf.d/php.ini
+COPY ./sources /var/www/html
+
 # Permission
 #RUN usermod -u 1000 www-data
 
